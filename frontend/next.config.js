@@ -6,8 +6,9 @@ const nextConfig = {
       process.env.BACKEND_URL || "http://localhost:8000";
     return [
       {
-        source: "/api/:path*",
-        destination: `${backendUrl}/api/:path*`,
+        // Explicitly proxy only the predict endpoint so /api/auth goes to Next.js
+        source: "/api/predict",
+        destination: `${backendUrl}/api/predict`,
       },
     ];
   },
