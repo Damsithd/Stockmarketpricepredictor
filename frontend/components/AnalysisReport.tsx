@@ -3,19 +3,28 @@ interface AnalysisReportProps {
 }
 
 /**
- * Renders the AI agent markdown report.
- * Applies a basic markdown-to-HTML conversion matching the original app.js logic,
- * with additional support for bullet lists.
+ * Converts a basic markdown string to safe HTML for the analysis report.
  */
+function markdownToHtml(text: string): string {
+  return (
+    text
+      // Headings
+      .replace(/^### (.+)$/gm, "<h3>$1</h3>")
+      // Bold
+      .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
+      // Bullet list items
+      .replace(/^- (.+)$/gm, "<li>$1</li>")
+      // Group consecutive <li> elements into a <ul> block (no 's' flag)
+      .replace(/(<li>[^<]*<\/li>(\s*<li>[^<]*<\/li>)*)/g, "<ul>$1</ul>")
+      // Paragraph breaks
+      .replace(/\n\n/g, "</p><p>")
+      // Line breaks
+      .replace(/\n/g, "<br/>")
+  );
+}
+
 export default function AnalysisReport({ report }: AnalysisReportProps) {
-  const html = report
-    .replace(/### (.*)/g, "<h3>$1</h3>")
-    .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
-    // Convert bullet lists
-    .replace(/^- (.+)/gm, "<li>$1</li>")
-    .replace(/(<li>.*<\/li>)/gs, "<ul>$1</ul>")
-    .replace(/\n\n/g, "</p><p>")
-    .replace(/\n/g, "<br/>");
+  const html = markdownToHtml(report);
 
   return (
     <div
