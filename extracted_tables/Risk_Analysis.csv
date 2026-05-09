@@ -1,0 +1,6 @@
+Risk ID,Risk Description,L,I,Mitigation Strategy
+R1,"Model Overfitting: The LSTM model may ""memorize"" historical noise instead of general patterns, leading to poor live performance.",4,5,"Implement Early Stopping, Dropout layers, and L2 Regularization during training. Validate using K-fold cross-validation on different time periods."
+R2,API Latency: High response times from the Python ML microservice could delay chart rendering beyond the 8-second NFR.,3,4,Use FastAPI for its asynchronous capabilities. Implement caching for frequently requested tickers to reduce redundant computation.
+R3,Data Source Volatility: Changes or outages in the Yahoo Finance API (External Data Layer) could break the data pipeline.,2,5,Implement robust exception handling in the data fetching script. Design a fallback mechanism to use local cached data if the API is unreachable.
+R4,Deployment Incompatibility: Differences between local development and cloud environments (Vercel/AWS) may cause service failures.,3,4,Use Docker containerization for both the Next.js frontend and Python backend to ensure environment parity across all stages.
+R5,Security Vulnerabilities: Unauthorized access to user accounts or data during transmission between microservices.,2,5,Enforce HTTPS for all API communication and implement JWT (JSON Web Tokens) for secure authentication between layers.

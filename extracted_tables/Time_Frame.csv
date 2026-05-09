@@ -1,0 +1,8 @@
+Phase,Duration (Month),Duration (Weeks),Deliverable
+Requirement & Research,October,Week 1–2,Project Proposal Submission (Current Document)
+ML Model Design & Training,October-November,Week 3–6,"Optimized LSTM Model (Trained, Saved weights) and Python ML Service API (Flask/FastAPI)."
+Next.js & Database Setup,December-January,Week 7–10,"Next.js Project Initialization, Authentication Logic, and MongoDB Integration (User/Watchlist Schemas)."
+Microservice Integration,January,Week 11–13,Full API Bridge Integration between Next.js API Routes and Python ML Service. Basic End-to-End Prediction Test.
+Frontend & Visualization,February,Week 14–16,"Complete, Responsive Next.js Frontend with Interactive Charts (Prediction & Metrics Display)."
+Testing & Evaluation,February-March,Week 17–18,Model Comparison and Evaluation Report (RMSE/MAE comparison) and System Load Test Report.
+Final Documentation,March,Week 19–20,Final Report Submission and Presentation Preparation.

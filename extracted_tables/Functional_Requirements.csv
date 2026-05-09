@@ -1,0 +1,5 @@
+Requirement,Description
+FR1 (Authentication),The system shall allow users to register and securely log in.
+FR2 (Prediction Request),"The system shall allow a user to input a stock ticker and a prediction horizon (e.g., 7 days)."
+FR3 (Visualization),The Next.js frontend shall display the historical stock data and the projected forecast via an interactive chart library.
+FR4 (Microservice Call),The Next.js backend (API route) shall send input features to the Python ML microservice via a secure HTTP request to obtain the prediction result.

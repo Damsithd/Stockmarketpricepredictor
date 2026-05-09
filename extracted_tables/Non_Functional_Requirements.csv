@@ -1,0 +1,5 @@
+Requirement,Description
+NFR1 (Performance),The complete prediction workflow (request to chart render) shall take less than 8 seconds to execute.
+NFR2 (Security),All user credentials and API communication must be encrypted (HTTPS and JWTs).
+NFR3 (Scalability),"The application must be deployable as two separate, containerized services (Next.js and Python) to facilitate independent scaling (Microservice Strategy)."
+NFR4 (Usability),The frontend application shall be fully responsive and optimized for both desktop and mobile devices.

@@ -1,0 +1,4 @@
+External Entity,Role/Contribution
+A Practicing Financial Analyst,Provides domain expertise for validating the utility of the technical indicators used and evaluating the real-world implications of the forecasting results.
+Financial Data API Provider,"Provides the necessary high-frequency, reliable financial data for real-time model training and inference."
+Cloud Service Provider (e.g. Vercel AWS),"Provides the platform for production deployment, enabling demonstration of MLOps and microservice containerization."

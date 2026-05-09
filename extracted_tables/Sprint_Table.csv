@@ -1,0 +1,6 @@
+Sprint,Focus Area,Key Tasks & Deliverables
+Sprint 1,Research & Data,"Gathering requirements, collecting historical data via Yahoo Finance API, and performing data preprocessing/normalization"
+Sprint 2,ML Model Development,"Designing the LSTM architecture, training with technical indicators (RSI, MACD), and validating against ARIMA"
+Sprint 3,Backend & API,"Developing the FastAPI/Flask microservice, containerizing the model with Docker, and setting up the MongoDB schema"
+Sprint 4,Frontend & Integration,"Building the Next.js interface, implementing user authentication, and establishing the secure API bridge to the ML service"
+Sprint 5,Testing & Deployment,"Performing unit, integration, and performance tests, followed by cloud deployment to Vercel and AWS"
