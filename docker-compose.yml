@@ -1,21 +1,18 @@
-version: '3.8'
-
 services:
   frontend:
-    build: 
+    build:
       context: ./frontend
     ports:
-      - "3000:80"
+      - "3000:3000"
     depends_on:
       - backend
-    # Since we mapped /api in app.js, in a real prod env we would configure nginx 
-    # to reverse proxy /api to the backend service. For our local FastAPI dev setup,
-    # the frontend makes relative calls which FastAPI handles.
+    environment:
+      # Tells Next.js where to proxy /api/* calls at build & runtime
+      - BACKEND_URL=http://backend:8000
+      - NODE_ENV=production
 
   backend:
     build:
       context: ./backend
     ports:
       - "8000:8000"
-    environment:
-      - NODE_ENV=development
