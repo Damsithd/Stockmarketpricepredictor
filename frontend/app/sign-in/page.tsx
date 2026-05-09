@@ -22,7 +22,7 @@ export default function SignInPage() {
       setError(err.message ?? "Sign in failed.");
       setLoading(false);
     } else {
-      router.push("/");
+      window.location.href = "/";
     }
   };
 

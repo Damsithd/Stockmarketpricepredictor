@@ -1,16 +1,26 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import SearchBar from "@/components/SearchBar";
 import StockChart from "@/components/StockChart";
 import AnalysisReport from "@/components/AnalysisReport";
 import { fetchPrediction, PredictionResponse } from "@/lib/api";
+import { useSession } from "@/lib/auth-client";
 
 export default function Home() {
+  const router = useRouter();
+  const { data: session, isPending } = useSession();
   const [ticker, setTicker] = useState("AAPL");
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<PredictionResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!isPending && !session) {
+      router.push("/sign-in");
+    }
+  }, [session, isPending, router]);
 
   const handleAnalyze = async (symbol: string) => {
     setLoading(true);
@@ -27,11 +37,24 @@ export default function Home() {
     }
   };
 
-  // Load default ticker on mount
+  // Load default ticker on mount, only if logged in
   useEffect(() => {
-    handleAnalyze("AAPL");
+    if (session) {
+      handleAnalyze("AAPL");
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [session]);
+
+  if (isPending || !session) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 min-h-[50vh]">
+        <div className="w-10 h-10 border-4 border-blue-500/30 border-t-blue-500 rounded-full animate-spin mb-4" />
+        <p className="text-gray-400 font-medium animate-pulse">
+          Authenticating...
+        </p>
+      </div>
+    );
+  }
 
   return (
     <>
