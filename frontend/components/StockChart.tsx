@@ -15,7 +15,6 @@ import {
   type ChartOptions,
 } from "chart.js";
 
-// Register Chart.js components (LineController is required for type: "line")
 Chart.register(
   LineController,
   LineElement,
@@ -32,19 +31,32 @@ interface DataPoint {
   price: number;
 }
 
-interface StockChartProps {
+interface PredictionData {
+  ticker: string;
   historical: DataPoint[];
   forecast: DataPoint[];
 }
 
-export default function StockChart({ historical, forecast }: StockChartProps) {
+interface StockChartProps {
+  datasets: PredictionData[];
+  normalized?: boolean;
+}
+
+const COLORS = [
+  "rgb(59, 130, 246)", // Blue
+  "rgb(16, 185, 129)", // Green
+  "rgb(245, 158, 11)", // Yellow
+  "rgb(239, 68, 68)",  // Red
+  "rgb(139, 92, 246)", // Purple
+];
+
+export default function StockChart({ datasets, normalized = false }: StockChartProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const chartRef = useRef<Chart | null>(null);
 
   useEffect(() => {
-    if (!canvasRef.current) return;
+    if (!canvasRef.current || datasets.length === 0) return;
 
-    // Destroy previous chart instance
     if (chartRef.current) {
       chartRef.current.destroy();
     }
@@ -52,44 +64,58 @@ export default function StockChart({ historical, forecast }: StockChartProps) {
     const ctx = canvasRef.current.getContext("2d");
     if (!ctx) return;
 
-    const labels = historical.map((d) => d.date);
-    const histData = historical.map((d) => d.price);
-    const nullsForForecast = new Array(historical.length - 1).fill(null);
-
-    const lastHistPoint = historical[historical.length - 1];
-    const forecastLabels = forecast.map((d) => d.date);
-    const foreData = [lastHistPoint.price, ...forecast.map((d) => d.price)];
-
+    // Use labels from the first dataset
+    const baseDataset = datasets[0];
+    const labels = baseDataset.historical.map((d) => d.date);
+    const forecastLabels = baseDataset.forecast.map((d) => d.date);
     const combinedLabels = [...labels, ...forecastLabels];
 
-    const data: ChartData<"line"> = {
+    const chartDatasets: any[] = [];
+
+    datasets.forEach((data, index) => {
+      const color = COLORS[index % COLORS.length];
+      const basePrice = data.historical[0]?.price || 1;
+
+      // Normalize if requested (percentage change)
+      const processPrice = (p: number) => normalized ? ((p - basePrice) / basePrice) * 100 : p;
+
+      const histData = data.historical.map((d) => processPrice(d.price));
+      const nullsForForecast = new Array(data.historical.length - 1).fill(null);
+      const lastHistPoint = processPrice(data.historical[data.historical.length - 1].price);
+      const foreData = [lastHistPoint, ...data.forecast.map((d) => processPrice(d.price))];
+
+      // Historical line
+      chartDatasets.push({
+        label: `${data.ticker} Historical`,
+        data: [...histData, ...new Array(data.forecast.length).fill(null)],
+        borderColor: color,
+        backgroundColor: color.replace("rgb", "rgba").replace(")", ", 0.1)"),
+        borderWidth: 2,
+        tension: 0.1,
+        pointRadius: 0,
+        pointHoverRadius: 4,
+        fill: datasets.length === 1, // Only fill if single stock
+      });
+
+      // Forecast line
+      chartDatasets.push({
+        label: `${data.ticker} Forecast`,
+        data: [...nullsForForecast, ...foreData],
+        borderColor: color,
+        backgroundColor: color.replace("rgb", "rgba").replace(")", ", 0.1)"),
+        borderWidth: 2,
+        borderDash: [5, 5],
+        tension: 0.1,
+        pointRadius: 2,
+        pointHoverRadius: 6,
+        pointBackgroundColor: color,
+        fill: datasets.length === 1,
+      });
+    });
+
+    const dataObj: ChartData<"line"> = {
       labels: combinedLabels,
-      datasets: [
-        {
-          label: "Historical Price",
-          data: [...histData, ...new Array(forecast.length).fill(null)],
-          borderColor: "rgb(156, 163, 175)",
-          backgroundColor: "rgba(156, 163, 175, 0.1)",
-          borderWidth: 2,
-          tension: 0.1,
-          pointRadius: 0,
-          pointHoverRadius: 4,
-          fill: true,
-        },
-        {
-          label: "LSTM Forecast",
-          data: [...nullsForForecast, ...foreData],
-          borderColor: "rgb(59, 130, 246)",
-          backgroundColor: "rgba(59, 130, 246, 0.1)",
-          borderWidth: 2,
-          borderDash: [5, 5],
-          tension: 0.1,
-          pointRadius: 2,
-          pointHoverRadius: 6,
-          pointBackgroundColor: "rgb(59, 130, 246)",
-          fill: true,
-        },
-      ],
+      datasets: chartDatasets,
     };
 
     const options: ChartOptions<"line"> = {
@@ -117,7 +143,7 @@ export default function StockChart({ historical, forecast }: StockChartProps) {
           padding: 10,
           displayColors: true,
           callbacks: {
-            label: (ctx) => `$${ctx.parsed.y?.toFixed(2) ?? ""}`,
+            label: (ctx) => normalized ? `${ctx.parsed.y?.toFixed(2)}%` : `$${ctx.parsed.y?.toFixed(2)}`,
           },
         },
       },
@@ -130,18 +156,18 @@ export default function StockChart({ historical, forecast }: StockChartProps) {
           grid: { color: "rgba(55, 65, 81, 0.3)" },
           ticks: {
             color: "#6b7280",
-            callback: (value) => `$${value}`,
+            callback: (value) => normalized ? `${value}%` : `$${value}`,
           },
         },
       },
     };
 
-    chartRef.current = new Chart(ctx, { type: "line", data, options });
+    chartRef.current = new Chart(ctx, { type: "line", data: dataObj, options });
 
     return () => {
       chartRef.current?.destroy();
     };
-  }, [historical, forecast]);
+  }, [datasets, normalized]);
 
   return <canvas ref={canvasRef} id="predictionChart" />;
 }

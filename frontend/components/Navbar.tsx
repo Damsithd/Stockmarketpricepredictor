@@ -32,10 +32,15 @@ export default function Navbar() {
           {/* Nav Actions */}
           <div className="flex items-center gap-4">
             <button
-              id="nav-docs-btn"
-              className="text-sm font-medium text-gray-400 hover:text-white transition-colors"
+              onClick={() => {
+                document.documentElement.classList.toggle("dark");
+              }}
+              className="p-2 rounded-full text-gray-400 hover:text-white bg-gray-800/50 hover:bg-gray-700/50 transition-colors"
+              title="Toggle Theme"
             >
-              Documentation
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+              </svg>
             </button>
             <div className="h-5 w-px bg-gray-700" />
 

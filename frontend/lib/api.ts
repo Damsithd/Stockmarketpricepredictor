@@ -32,3 +32,18 @@ export async function fetchPrediction(
 
   return response.json() as Promise<PredictionResponse>;
 }
+
+export async function fetchBriefing(tickers: string[]): Promise<string> {
+  const response = await fetch("/api/briefing", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ tickers }),
+  });
+
+  if (!response.ok) {
+    return "Failed to fetch AI briefing.";
+  }
+
+  const data = await response.json();
+  return data.briefing;
+}
