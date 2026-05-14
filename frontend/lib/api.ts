@@ -1,6 +1,11 @@
 export interface DataPoint {
   date: string;
   price: number;
+  open?: number;
+  high?: number;
+  low?: number;
+  close?: number;
+  volume?: number;
 }
 
 export interface PredictionResponse {

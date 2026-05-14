@@ -7,7 +7,7 @@ import Footer from "@/components/Footer";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "PredictiveAlpha | Stock Price Indicator & Prediction Platform",
+  title: "Stock market price predictor and indicator",
   description:
     "LSTM deep-learning forecasts and multi-agent sentiment analysis for stock price prediction. Powered by TradingAgents Framework.",
 };

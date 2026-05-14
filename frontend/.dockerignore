@@ -1,8 +1,8 @@
-.git
-.gitignore
-.dockerignore
 Dockerfile
+.dockerignore
 node_modules
-.next
-.DS_Store
+npm-debug.log
 README.md
+.next
+.git
+.env*.local

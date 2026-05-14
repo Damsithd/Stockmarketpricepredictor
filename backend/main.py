@@ -29,6 +29,11 @@ class PredictionRequest(BaseModel):
 class DataPoint(BaseModel):
     date: str
     price: float
+    open: Optional[float] = None
+    high: Optional[float] = None
+    low: Optional[float] = None
+    close: Optional[float] = None
+    volume: Optional[float] = None
 
 class PredictionResponse(BaseModel):
     ticker: str
@@ -51,7 +56,7 @@ def get_prediction(request: PredictionRequest):
         
         return PredictionResponse(
             ticker=request.ticker,
-            historical=[DataPoint(date=d['date'], price=d['price']) for d in historical_data],
+            historical=[DataPoint(date=d['date'], price=d['price'], open=d.get('open'), high=d.get('high'), low=d.get('low'), close=d.get('close'), volume=d.get('volume')) for d in historical_data],
             forecast=[DataPoint(date=d['date'], price=d['price']) for d in forecast_data],
             analysis_report=analysis_report
         )
@@ -74,23 +79,7 @@ def get_briefing(request: BriefingRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-# Serve static files from the frontend directory
-frontend_path = os.path.join(os.path.dirname(__file__), '..', 'frontend')
-app.mount("/static", StaticFiles(directory=frontend_path), name="static")
 
-@app.get("/{full_path:path}")
-def serve_frontend(full_path: str):
-    # If the path is empty, serve index.html
-    if not full_path or full_path == "":
-        return FileResponse(os.path.join(frontend_path, "index.html"))
-    
-    # Try to serve the requested file
-    file_path = os.path.join(frontend_path, full_path)
-    if os.path.exists(file_path):
-        return FileResponse(file_path)
-    
-    # Fallback to index.html for SPA routing
-    return FileResponse(os.path.join(frontend_path, "index.html"))
 
 if __name__ == "__main__":
     import uvicorn

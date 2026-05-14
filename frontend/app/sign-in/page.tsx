@@ -47,7 +47,7 @@ export default function SignInPage() {
             </div>
             <h1 className="text-2xl font-bold text-white">Welcome back</h1>
             <p className="text-gray-400 text-sm mt-1">
-              Sign in to your PredictiveAlpha account
+              Sign in to your Stock market price predictor and indicator account
             </p>
           </div>
 
