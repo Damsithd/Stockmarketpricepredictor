@@ -97,6 +97,7 @@ export default function DashboardPage() {
   // Comparative Charting
   const [compareMode, setCompareMode] = useState(false);
   const [compareData, setCompareData] = useState<PredictionResponse[]>([]);
+  const [overlays, setOverlays] = useState({ sma20: false, sma50: false, bb: false });
 
   useEffect(() => {
     if (!isPending && !session) {
@@ -146,6 +147,7 @@ export default function DashboardPage() {
     setHorizon(h);
     setHistoricalDays(hDays);
     setCompareMode(false);
+    setOverlays({ sma20: false, sma50: false, bb: false }); // reset overlays on new ticker
     try {
       const result = await fetchPrediction(symbol, h, hDays);
       setData(result);
@@ -342,7 +344,7 @@ export default function DashboardPage() {
 
               {/* Chart */}
               <div className="flex-1 w-full min-h-[280px]">
-                <StockChart datasets={[data]} />
+                <StockChart datasets={[data]} overlays={overlays} />
               </div>
 
               {/* Legend row */}
@@ -386,7 +388,11 @@ export default function DashboardPage() {
           </div>
 
           {/* ── Technical Indicators Panel ── */}
-          <IndicatorPanel historical={data.historical} />
+          <IndicatorPanel
+            historical={data.historical}
+            overlays={overlays}
+            onOverlayChange={(key, val) => setOverlays(prev => ({ ...prev, [key]: val }))}
+          />
 
           {/* ── Compare mode trigger (only when 2+ favorites) ── */}
           {userData.favorites.length > 1 && (

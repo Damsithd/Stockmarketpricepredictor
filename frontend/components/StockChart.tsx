@@ -1,12 +1,19 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import { createChart, IChartApi, ISeriesApi, Time, LineStyle, CrosshairMode } from "lightweight-charts";
 import { DataPoint, PredictionResponse } from "@/lib/api";
+
+interface ChartOverlays {
+  sma20?: boolean;
+  sma50?: boolean;
+  bb?:    boolean;
+}
 
 interface StockChartProps {
   datasets: PredictionResponse[];
   normalized?: boolean;
+  overlays?: ChartOverlays;
 }
 
 const COLORS = [
@@ -53,19 +60,16 @@ function calculateBollingerBands(data: number[], period: number, stdDevMult: num
   return { upper, lower };
 }
 
-export default function StockChart({ datasets, normalized = false }: StockChartProps) {
+export default function StockChart({ datasets, normalized = false, overlays = {} }: StockChartProps) {
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
-  
-  // Overlays state
-  const [showBB, setShowBB] = useState(false);
-  const [showSMA, setShowSMA] = useState(false);
 
-  // Store series refs for toggling
+  // Store overlay series refs so we can toggle without rebuilding the chart
   const seriesRefs = useRef<{
     bbUpper?: ISeriesApi<"Line">;
     bbLower?: ISeriesApi<"Line">;
-    sma?: ISeriesApi<"Line">;
+    sma20?:  ISeriesApi<"Line">;
+    sma50?:  ISeriesApi<"Line">;
   }>({});
 
   useEffect(() => {
@@ -193,33 +197,32 @@ export default function StockChart({ datasets, normalized = false }: StockChartP
       const uniqueFore = foreData.filter((v, i, a) => i === 0 || v.time !== a[i - 1].time);
       forecastSeries.setData(uniqueFore);
 
-      // Store overlays data for toggling
+      // Overlay data arrays
       const closes = candleData.map(d => d.close);
-      
+
+      // Calculate SMA 20 & SMA 50
+      const sma20Raw  = calculateSMA(closes, 20);
+      const sma50Raw  = calculateSMA(closes, 50);
+      const sma20Line = candleData.map((d, i) => ({ time: d.time, value: sma20Raw[i] })).filter(d => d.value !== null) as {time: Time, value: number}[];
+      const sma50Line = candleData.map((d, i) => ({ time: d.time, value: sma50Raw[i] })).filter(d => d.value !== null) as {time: Time, value: number}[];
+
       // Calculate BB
       const { upper, lower } = calculateBollingerBands(closes, 20, 2);
       const bbUpperData = candleData.map((d, i) => ({ time: d.time, value: upper[i] })).filter(d => d.value !== null) as {time: Time, value: number}[];
       const bbLowerData = candleData.map((d, i) => ({ time: d.time, value: lower[i] })).filter(d => d.value !== null) as {time: Time, value: number}[];
-      
-      // Calculate SMA 20
-      const smaDataRaw = calculateSMA(closes, 20);
-      const smaDataLine = candleData.map((d, i) => ({ time: d.time, value: smaDataRaw[i] })).filter(d => d.value !== null) as {time: Time, value: number}[];
 
-      // Add Series but keep them hidden initially
-      const bbUpperSeries = chart.addLineSeries({ color: 'rgba(59, 130, 246, 0.5)', lineWidth: 1, title: 'BB Upper' });
-      const bbLowerSeries = chart.addLineSeries({ color: 'rgba(59, 130, 246, 0.5)', lineWidth: 1, title: 'BB Lower' });
-      const smaSeries = chart.addLineSeries({ color: '#f59e0b', lineWidth: 2, title: 'SMA 20' });
+      // Add overlay series — hidden until overlays prop enables them
+      const sma20Series  = chart.addLineSeries({ color: '#f59e0b', lineWidth: 2, title: 'SMA 20', visible: false });
+      const sma50Series  = chart.addLineSeries({ color: '#8b5cf6', lineWidth: 2, title: 'SMA 50', visible: false });
+      const bbUpperSeries = chart.addLineSeries({ color: 'rgba(59,130,246,0.55)', lineWidth: 1, lineStyle: LineStyle.Dashed, title: 'BB Upper', visible: false });
+      const bbLowerSeries = chart.addLineSeries({ color: 'rgba(59,130,246,0.55)', lineWidth: 1, lineStyle: LineStyle.Dashed, title: 'BB Lower', visible: false });
 
+      sma20Series.setData(sma20Line);
+      sma50Series.setData(sma50Line);
       bbUpperSeries.setData(bbUpperData);
       bbLowerSeries.setData(bbLowerData);
-      smaSeries.setData(smaDataLine);
 
-      // Hide by default
-      bbUpperSeries.applyOptions({ visible: false });
-      bbLowerSeries.applyOptions({ visible: false });
-      smaSeries.applyOptions({ visible: false });
-
-      seriesRefs.current = { bbUpper: bbUpperSeries, bbLower: bbLowerSeries, sma: smaSeries };
+      seriesRefs.current = { sma20: sma20Series, sma50: sma50Series, bbUpper: bbUpperSeries, bbLower: bbLowerSeries };
       
       chart.timeScale().fitContent();
     }
@@ -230,51 +233,17 @@ export default function StockChart({ datasets, normalized = false }: StockChartP
     };
   }, [datasets, normalized]);
 
-  // Effect to handle toggles without recreating the whole chart
+  // React to overlay prop changes without rebuilding the chart
   useEffect(() => {
-    if (seriesRefs.current.bbUpper && seriesRefs.current.bbLower) {
-      seriesRefs.current.bbUpper.applyOptions({ visible: showBB });
-      seriesRefs.current.bbLower.applyOptions({ visible: showBB });
-    }
-    if (seriesRefs.current.sma) {
-      seriesRefs.current.sma.applyOptions({ visible: showSMA });
-    }
-  }, [showBB, showSMA]);
+    const r = seriesRefs.current;
+    r.sma20?.applyOptions({  visible: !!overlays.sma20 });
+    r.sma50?.applyOptions({  visible: !!overlays.sma50 });
+    r.bbUpper?.applyOptions({ visible: !!overlays.bb });
+    r.bbLower?.applyOptions({ visible: !!overlays.bb });
+  }, [overlays.sma20, overlays.sma50, overlays.bb]);
 
   return (
     <div className="relative w-full h-full flex flex-col">
-      {/* Chart Controls (only show in single ticker mode) */}
-      {!normalized && (
-        <div className="absolute top-2 left-2 z-10 flex gap-1.5 flex-wrap">
-          <button
-            id="toggle-sma-btn"
-            onClick={() => setShowSMA(!showSMA)}
-            className={`px-2.5 py-1 rounded-md text-[11px] font-medium transition-colors ${
-              showSMA
-                ? "bg-amber-500 text-white shadow-sm"
-                : "bg-white/80 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-600 text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-white backdrop-blur-sm"
-            }`}
-          >
-            SMA 20
-          </button>
-          <button
-            id="toggle-bb-btn"
-            onClick={() => setShowBB(!showBB)}
-            className={`px-2.5 py-1 rounded-md text-[11px] font-medium transition-colors ${
-              showBB
-                ? "bg-[#185FA5] text-white shadow-sm"
-                : "bg-white/80 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-600 text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-white backdrop-blur-sm"
-            }`}
-          >
-            Bollinger Bands
-          </button>
-          <div className="flex items-center px-2.5 py-1 rounded-md text-[11px] font-medium bg-white/80 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-600 text-slate-500 dark:text-slate-400 backdrop-blur-sm gap-1.5">
-            <div className="w-1.5 h-1.5 rounded-full bg-amber-400" />
-            Vol. spikes
-          </div>
-        </div>
-      )}
-      
       {/* Chart Container */}
       <div ref={chartContainerRef} className="w-full h-full min-h-[400px]" />
     </div>

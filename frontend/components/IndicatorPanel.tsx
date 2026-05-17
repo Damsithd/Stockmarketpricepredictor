@@ -20,8 +20,16 @@ ChartJS.register(
   BarElement, Filler, Tooltip, Legend
 );
 
+interface ChartOverlays {
+  sma20: boolean;
+  sma50: boolean;
+  bb:    boolean;
+}
+
 interface Props {
   historical: DataPoint[];
+  overlays: ChartOverlays;
+  onOverlayChange: (key: keyof ChartOverlays, value: boolean) => void;
 }
 
 type TabId =
@@ -93,7 +101,7 @@ function SignalBadge({ value, label }: { value: string; label: string }) {
   );
 }
 
-export default function IndicatorPanel({ historical }: Props) {
+export default function IndicatorPanel({ historical, overlays, onOverlayChange }: Props) {
   const [activeTab, setActiveTab] = useState<TabId>("bollinger");
 
   // Use last 120 points for readability
@@ -378,6 +386,68 @@ export default function IndicatorPanel({ historical }: Props) {
         {signalMap[activeTab] && (
           <div className="shrink-0">{signalMap[activeTab]}</div>
         )}
+      </div>
+
+      {/* ── Overlay on main chart row ─────────────────────────────────── */}
+      <div className="mb-3 pb-3 border-b border-slate-100 dark:border-slate-700">
+        <p className="text-[10px] font-medium text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2">
+          Overlay on main chart
+        </p>
+        <div className="flex items-center gap-1.5 flex-wrap">
+          {/* SMA 20 */}
+          <button
+            id="overlay-sma20-btn"
+            onClick={() => onOverlayChange("sma20", !overlays.sma20)}
+            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-medium transition-colors ${
+              overlays.sma20
+                ? "bg-amber-500 text-white"
+                : "bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-600"
+            }`}
+          >
+            <span className={`inline-block w-3 h-0.5 ${overlays.sma20 ? "bg-white" : "bg-amber-400"}`} />
+            SMA 20
+          </button>
+
+          {/* SMA 50 */}
+          <button
+            id="overlay-sma50-btn"
+            onClick={() => onOverlayChange("sma50", !overlays.sma50)}
+            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-medium transition-colors ${
+              overlays.sma50
+                ? "bg-violet-500 text-white"
+                : "bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-600"
+            }`}
+          >
+            <span className={`inline-block w-3 h-0.5 ${overlays.sma50 ? "bg-white" : "bg-violet-500"}`} />
+            SMA 50
+          </button>
+
+          {/* Bollinger Bands */}
+          <button
+            id="overlay-bb-btn"
+            onClick={() => onOverlayChange("bb", !overlays.bb)}
+            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-medium transition-colors ${
+              overlays.bb
+                ? "bg-[#185FA5] text-white"
+                : "bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-600"
+            }`}
+          >
+            <span className="flex gap-px">
+              <span className={`inline-block w-1.5 h-0.5 ${overlays.bb ? "bg-white" : "bg-blue-400"}`} />
+              <span className={`inline-block w-1.5 h-0.5 ${overlays.bb ? "bg-white/40" : "bg-blue-300"}`} />
+            </span>
+            Bollinger Bands
+          </button>
+
+          {(overlays.sma20 || overlays.sma50 || overlays.bb) && (
+            <button
+              onClick={() => { onOverlayChange("sma20", false); onOverlayChange("sma50", false); onOverlayChange("bb", false); }}
+              className="ml-auto px-2 py-1 text-[10px] text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
+            >
+              Clear all
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Tab bar */}
