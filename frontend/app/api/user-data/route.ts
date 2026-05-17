@@ -22,12 +22,22 @@ export async function POST(req: Request) {
 
   const body = await req.json();
   const db = await getDb();
-  
+
+  // Only update the fields that were actually sent — avoids one page
+  // overwriting the other's data with an empty array.
+  const fieldsToSet: Record<string, unknown> = {};
+  if (body.favorites !== undefined) fieldsToSet.favorites = body.favorites;
+  if (body.holdings  !== undefined) fieldsToSet.holdings  = body.holdings;
+
+  if (Object.keys(fieldsToSet).length === 0) {
+    return NextResponse.json({ error: "No data provided" }, { status: 400 });
+  }
+
   await db.collection("user_data").updateOne(
     { userId: session.user.id },
-    { $set: { favorites: body.favorites || [], holdings: body.holdings || [] } },
+    { $set: fieldsToSet },
     { upsert: true }
   );
-  
+
   return NextResponse.json({ success: true });
 }
