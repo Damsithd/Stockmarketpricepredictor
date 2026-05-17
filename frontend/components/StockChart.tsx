@@ -245,29 +245,32 @@ export default function StockChart({ datasets, normalized = false }: StockChartP
     <div className="relative w-full h-full flex flex-col">
       {/* Chart Controls (only show in single ticker mode) */}
       {!normalized && (
-        <div className="absolute top-4 left-4 z-10 flex gap-2">
+        <div className="absolute top-2 left-2 z-10 flex gap-1.5 flex-wrap">
           <button
+            id="toggle-sma-btn"
             onClick={() => setShowSMA(!showSMA)}
-            className={`px-3 py-1 rounded text-xs font-medium backdrop-blur-md transition-colors ${
-              showSMA 
-                ? "bg-yellow-500/20 border border-yellow-500/50 text-yellow-400" 
-                : "bg-gray-900/60 border border-gray-700 text-gray-400 hover:text-white"
+            className={`px-2.5 py-1 rounded-md text-[11px] font-medium transition-colors ${
+              showSMA
+                ? "bg-amber-500 text-white shadow-sm"
+                : "bg-white/80 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-600 text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-white backdrop-blur-sm"
             }`}
           >
             SMA 20
           </button>
           <button
+            id="toggle-bb-btn"
             onClick={() => setShowBB(!showBB)}
-            className={`px-3 py-1 rounded text-xs font-medium backdrop-blur-md transition-colors ${
-              showBB 
-                ? "bg-blue-500/20 border border-blue-500/50 text-blue-400" 
-                : "bg-gray-900/60 border border-gray-700 text-gray-400 hover:text-white"
+            className={`px-2.5 py-1 rounded-md text-[11px] font-medium transition-colors ${
+              showBB
+                ? "bg-[#185FA5] text-white shadow-sm"
+                : "bg-white/80 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-600 text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-white backdrop-blur-sm"
             }`}
           >
             Bollinger Bands
           </button>
-          <div className="flex items-center px-2 py-1 rounded text-xs font-medium bg-gray-900/60 border border-gray-700 text-gray-400 backdrop-blur-md ml-2 gap-2">
-             <div className="w-2 h-2 rounded-full bg-yellow-500 opacity-80" /> AI Volume Spikes
+          <div className="flex items-center px-2.5 py-1 rounded-md text-[11px] font-medium bg-white/80 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-600 text-slate-500 dark:text-slate-400 backdrop-blur-sm gap-1.5">
+            <div className="w-1.5 h-1.5 rounded-full bg-amber-400" />
+            Vol. spikes
           </div>
         </div>
       )}
