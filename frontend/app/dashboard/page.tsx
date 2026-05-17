@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import SearchBar from "@/components/SearchBar";
 import StockChart from "@/components/StockChart";
 import AnalysisReport from "@/components/AnalysisReport";
+import IndicatorPanel from "@/components/IndicatorPanel";
 import { fetchPrediction, fetchBriefing, PredictionResponse } from "@/lib/api";
 import { useSession } from "@/lib/auth-client";
 
@@ -383,6 +384,9 @@ export default function DashboardPage() {
               </div>
             </div>
           </div>
+
+          {/* ── Technical Indicators Panel ── */}
+          <IndicatorPanel historical={data.historical} />
 
           {/* ── Compare mode trigger (only when 2+ favorites) ── */}
           {userData.favorites.length > 1 && (

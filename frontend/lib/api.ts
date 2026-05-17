@@ -1,17 +1,40 @@
 export interface DataPoint {
   date: string;
   price: number;
-  open?: number;
-  high?: number;
-  low?: number;
-  close?: number;
+  // OHLCV
+  open?:   number;
+  high?:   number;
+  low?:    number;
+  close?:  number;
   volume?: number;
+  // Moving averages
+  sma20?:  number;
+  sma50?:  number;
+  ema12?:  number;
+  ema26?:  number;
+  // MACD suite
+  macd?:        number;
+  macd_signal?: number;
+  macd_hist?:   number;
+  // RSI
+  rsi?: number;
+  // Bollinger Bands
+  bb_upper?:  number;
+  bb_lower?:  number;
+  bb_middle?: number;
+  // Medium indicators
+  atr?:       number;
+  stoch_k?:   number;
+  stoch_d?:   number;
+  obv?:       number;
+  williams_r?: number;
+  cci?:       number;
 }
 
 export interface PredictionResponse {
   ticker: string;
   historical: DataPoint[];
-  forecast: DataPoint[];
+  forecast:   DataPoint[];
   analysis_report: string;
 }
 
@@ -46,10 +69,7 @@ export async function fetchBriefing(tickers: string[]): Promise<string> {
     body: JSON.stringify({ tickers }),
   });
 
-  if (!response.ok) {
-    return "Failed to fetch AI briefing.";
-  }
-
+  if (!response.ok) return "Failed to fetch AI briefing.";
   const data = await response.json();
   return data.briefing;
 }
