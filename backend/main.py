@@ -25,6 +25,7 @@ app.add_middleware(
 class PredictionRequest(BaseModel):
     ticker: str
     horizon: int = 7
+    historical_days: int = 365  # how many days of history to return (default: 1 year)
 
 class DataPoint(BaseModel):
     date: str
@@ -49,7 +50,7 @@ def read_root():
 def get_prediction(request: PredictionRequest):
     try:
         # Get numerical forecast using LSTM logic
-        historical_data, forecast_data = predict_stock(request.ticker, request.horizon)
+        historical_data, forecast_data = predict_stock(request.ticker, request.horizon, request.historical_days)
         
         # Get qualitative analysis report using Agent Logic
         analysis_report = generate_analyst_report(request.ticker, historical_data, forecast_data)

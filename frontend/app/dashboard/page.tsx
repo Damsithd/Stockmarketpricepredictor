@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import SearchBar from "@/components/SearchBar";
 import StockChart from "@/components/StockChart";
@@ -19,11 +19,72 @@ interface UserData {
   holdings: Holding[];
 }
 
-export default function Home() {
+/* ── helpers ── */
+// Simple RSI (14) from the last 15 closes
+function computeRSI(prices: number[]): number | null {
+  if (prices.length < 15) return null;
+  const slice = prices.slice(-15);
+  let gains = 0, losses = 0;
+  for (let i = 1; i < slice.length; i++) {
+    const diff = slice[i] - slice[i - 1];
+    if (diff > 0) gains += diff;
+    else losses += Math.abs(diff);
+  }
+  const rs = gains / (losses || 1);
+  return Math.round((100 - 100 / (1 + rs)) * 10) / 10;
+}
+
+// Simple MACD signal (12-EMA minus 26-EMA approximation via last values)
+function computeMACD(prices: number[]): number | null {
+  if (prices.length < 26) return null;
+  const ema = (arr: number[], n: number) => {
+    const k = 2 / (n + 1);
+    let val = arr.slice(0, n).reduce((a, b) => a + b, 0) / n;
+    for (let i = n; i < arr.length; i++) val = arr[i] * k + val * (1 - k);
+    return val;
+  };
+  const ema12 = ema(prices, 12);
+  const ema26 = ema(prices, 26);
+  return Math.round((ema12 - ema26) * 100) / 100;
+}
+
+function MetricCard({
+  label,
+  value,
+  changeText,
+  positive,
+}: {
+  label: string;
+  value: string;
+  changeText: string;
+  positive?: boolean;
+}) {
+  return (
+    <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl p-4 flex flex-col gap-1">
+      <span className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">{label}</span>
+      <span className="text-[20px] font-medium text-slate-900 dark:text-white leading-tight">{value}</span>
+      <span
+        className={`text-[11px] font-medium ${
+          positive === true
+            ? "text-[#0F6E56] dark:text-green-400"
+            : positive === false
+            ? "text-[#993C1D] dark:text-red-400"
+            : "text-[#854F0B] dark:text-amber-400"
+        }`}
+      >
+        {changeText}
+      </span>
+    </div>
+  );
+}
+
+export default function DashboardPage() {
   const router = useRouter();
   const { data: session, isPending } = useSession();
-  
+
   const [ticker, setTicker] = useState("AAPL");
+  const [horizon, setHorizon] = useState(7);
+  const [historicalDays, setHistoricalDays] = useState(365);
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<PredictionResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -31,7 +92,7 @@ export default function Home() {
   // User Data State
   const [userData, setUserData] = useState<UserData>({ favorites: [], holdings: [] });
   const [briefing, setBriefing] = useState<string | null>(null);
-  
+
   // Comparative Charting
   const [compareMode, setCompareMode] = useState(false);
   const [compareData, setCompareData] = useState<PredictionResponse[]>([]);
@@ -46,8 +107,8 @@ export default function Home() {
   useEffect(() => {
     if (session) {
       fetch("/api/user-data")
-        .then(res => res.json())
-        .then((data: UserData) => setUserData(data))
+        .then((res) => res.json())
+        .then((d: UserData) => setUserData(d))
         .catch(console.error);
     }
   }, [session]);
@@ -64,25 +125,28 @@ export default function Home() {
     await fetch("/api/user-data", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(newData)
+      body: JSON.stringify(newData),
     });
   };
 
   const toggleFavorite = (symbol: string) => {
     const isFav = userData.favorites.includes(symbol);
-    const newFavs = isFav 
-      ? userData.favorites.filter(t => t !== symbol)
+    const newFavs = isFav
+      ? userData.favorites.filter((t) => t !== symbol)
       : [...userData.favorites, symbol];
     saveUserData({ ...userData, favorites: newFavs });
   };
 
-  const handleAnalyze = async (symbol: string) => {
+  const handleAnalyze = async (symbol: string, h: number = horizon, hDays: number = historicalDays) => {
     setLoading(true);
     setError(null);
     setData(null);
     setTicker(symbol);
+    setHorizon(h);
+    setHistoricalDays(hDays);
+    setCompareMode(false);
     try {
-      const result = await fetchPrediction(symbol, 7);
+      const result = await fetchPrediction(symbol, h, hDays);
       setData(result);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Prediction failed.");
@@ -95,9 +159,9 @@ export default function Home() {
     setLoading(true);
     setError(null);
     try {
-      const results = await Promise.all(symbols.map(s => fetchPrediction(s, 7)));
+      const results = await Promise.all(symbols.map((s) => fetchPrediction(s, horizon)));
       setCompareData(results);
-    } catch (err: unknown) {
+    } catch {
       setError("Comparison failed. Could not fetch all tickers.");
     } finally {
       setLoading(false);
@@ -106,161 +170,252 @@ export default function Home() {
 
   useEffect(() => {
     if (session) {
-      handleAnalyze("AAPL");
+      handleAnalyze("AAPL", 7, 365);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session]);
 
+  /* ── Derived metrics ── */
+  const metrics = useMemo(() => {
+    if (!data) return null;
+
+    const prices = data.historical.map((d) => d.price);
+    const currentPrice = prices[prices.length - 1] ?? 0;
+    const prevPrice = prices[prices.length - 2] ?? currentPrice;
+    const pctChange = prevPrice ? ((currentPrice - prevPrice) / prevPrice) * 100 : 0;
+
+    const rsi = computeRSI(prices);
+    const rsiLabel =
+      rsi === null ? "—" : rsi > 70 ? "Overbought" : rsi < 30 ? "Oversold" : "Neutral zone";
+    const rsiPositive = rsi === null ? undefined : rsi > 50 ? true : rsi < 40 ? false : undefined;
+
+    const macd = computeMACD(prices);
+    const macdLabel = macd === null ? "—" : macd > 0 ? "Bullish cross" : "Bearish cross";
+    const macdPositive = macd === null ? undefined : macd > 0;
+
+    const forecastPrice =
+      data.forecast.length > 0 ? data.forecast[data.forecast.length - 1].price : null;
+    const forecastPct =
+      forecastPrice !== null && currentPrice
+        ? ((forecastPrice - currentPrice) / currentPrice) * 100
+        : null;
+
+    return {
+      currentPrice: `$${currentPrice.toFixed(2)}`,
+      priceChange: `${pctChange >= 0 ? "+" : ""}${pctChange.toFixed(2)}% today`,
+      pricePositive: pctChange >= 0,
+
+      rsi: rsi !== null ? `${rsi}` : "—",
+      rsiLabel,
+      rsiPositive,
+
+      macd: macd !== null ? (macd >= 0 ? `+${macd}` : `${macd}`) : "—",
+      macdLabel,
+      macdPositive,
+
+      forecast: forecastPrice !== null ? `$${forecastPrice.toFixed(1)}` : "—",
+      forecastLabel:
+        forecastPct !== null
+          ? `${forecastPct >= 0 ? "+" : ""}${forecastPct.toFixed(1)}% est.`
+          : "—",
+      forecastPositive: forecastPct !== null ? forecastPct >= 0 : undefined,
+    };
+  }, [data]);
+
+  const isCurrentFavorite = userData.favorites.includes(ticker);
+
+  /* ── Loading skeleton ── */
   if (isPending || !session) {
     return (
-      <div className="flex flex-col items-center justify-center py-20 min-h-[50vh]">
-        <div className="w-10 h-10 border-4 border-blue-500/30 border-t-blue-500 rounded-full animate-spin mb-4" />
-        <p className="text-gray-400 font-medium animate-pulse">Authenticating...</p>
+      <div className="flex flex-col items-center justify-center py-24 min-h-[50vh]">
+        <div className="w-8 h-8 border-[3px] border-[#185FA5]/30 border-t-[#185FA5] rounded-full animate-spin mb-3" />
+        <p className="text-slate-400 text-sm">Authenticating…</p>
       </div>
     );
   }
 
-  const isCurrentFavorite = userData.favorites.includes(ticker);
-
   return (
-    <div className="space-y-8 animate-in fade-in duration-500">
-      {/* Briefing Banner */}
+    <div className="space-y-4 animate-in">
+      {/* ── Daily briefing banner (only when favourites exist) ── */}
       {briefing && (
-        <div className="bg-blue-500/10 border border-blue-500/30 rounded-2xl p-5 shadow-lg backdrop-blur-sm">
-          <div className="flex items-center gap-2 mb-2">
-            <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
-            <h2 className="text-sm font-semibold text-blue-400">Daily AI Briefing for your Watchlist</h2>
+        <div className="bg-[#E6F1FB] dark:bg-blue-950/50 border border-[#185FA5]/20 dark:border-blue-800/40 rounded-xl px-4 py-3">
+          <div className="flex items-center gap-2 mb-1">
+            <div className="w-1.5 h-1.5 rounded-full bg-[#185FA5] animate-pulse" />
+            <span className="text-xs font-semibold text-[#185FA5] dark:text-blue-400">Daily AI Briefing</span>
           </div>
-          <p className="text-gray-300 text-sm leading-relaxed">{briefing}</p>
+          <p className="text-slate-600 dark:text-slate-300 text-[12px] leading-relaxed">{briefing}</p>
         </div>
       )}
 
-      {/* Header & Search */}
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight text-white mb-2">Market Intelligence</h1>
-          <p className="text-gray-400">LSTM deep-learning forecasts & multi-agent sentiment analysis.</p>
-        </div>
-        <SearchBar onAnalyze={handleAnalyze} defaultTicker="AAPL" />
-      </div>
+      {/* ── Search bar row ── */}
+      <SearchBar
+        onAnalyze={handleAnalyze}
+        currentTicker={data?.ticker}
+        defaultTicker="AAPL"
+      />
 
-      {/* Dashboard Top Row: Watchlist & Portfolio */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="bg-gray-900/40 border border-gray-800 rounded-2xl p-5 shadow-lg">
-          <h3 className="font-semibold text-lg mb-4 flex items-center gap-2">
-            <span className="text-yellow-400">⭐</span> Watchlist
-          </h3>
-          {userData.favorites.length === 0 ? (
-            <p className="text-sm text-gray-500">No favorite indices yet. Search and add some!</p>
-          ) : (
-            <div className="flex flex-wrap gap-2">
-              {userData.favorites.map(fav => (
-                <button
-                  key={fav}
-                  onClick={() => handleAnalyze(fav)}
-                  className="px-3 py-1.5 rounded-lg bg-gray-800 hover:bg-gray-700 border border-gray-700 text-sm font-medium transition-colors"
-                >
-                  {fav}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-
-        <div className="bg-gray-900/40 border border-gray-800 rounded-2xl p-5 shadow-lg">
-          <h3 className="font-semibold text-lg mb-4 flex items-center gap-2">
-            <span className="text-green-400">💼</span> Portfolio Holdings
-          </h3>
-          {userData.holdings.length === 0 ? (
-            <p className="text-sm text-gray-500">Portfolio tracking coming soon. Add your holdings to track performance.</p>
-          ) : (
-            <div className="space-y-2">
-              {userData.holdings.map(h => (
-                <div key={h.ticker} className="flex justify-between items-center text-sm p-2 bg-gray-800/50 rounded-lg">
-                  <span className="font-medium">{h.ticker}</span>
-                  <span className="text-gray-400">{h.shares} shares @ ${h.avgPrice}</span>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Loading / Error States */}
+      {/* ── Loading / error states ── */}
       {loading && (
-        <div className="flex flex-col items-center justify-center py-20">
-          <div className="w-10 h-10 border-4 border-blue-500/30 border-t-blue-500 rounded-full animate-spin mb-4" />
-          <p className="text-gray-400 font-medium animate-pulse">Running predictive models...</p>
+        <div className="flex items-center justify-center py-16">
+          <div className="flex flex-col items-center gap-3">
+            <div className="w-8 h-8 border-[3px] border-[#185FA5]/30 border-t-[#185FA5] rounded-full animate-spin" />
+            <p className="text-slate-400 text-sm">Running predictive models…</p>
+          </div>
         </div>
       )}
 
       {error && !loading && (
-        <div className="flex items-center gap-3 bg-red-500/10 border border-red-500/30 text-red-400 rounded-xl p-4">
+        <div className="flex items-center gap-3 bg-[#FAECE7] dark:bg-red-950/50 border border-[#993C1D]/20 dark:border-red-800/40 text-[#993C1D] dark:text-red-400 rounded-xl p-3">
+          <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
           <span className="text-sm font-medium">{error}</span>
         </div>
       )}
 
-      {/* Chart and Analysis Area */}
+      {/* ── Main content (only when data is ready) ── */}
       {data && !loading && !compareMode && (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2 flex flex-col gap-6">
-            <div className="bg-gray-900/40 border border-gray-800 rounded-2xl p-5 shadow-lg relative overflow-hidden">
-              <div className="flex justify-between items-center mb-4">
-                <div className="flex items-center gap-3">
-                  <h2 className="text-lg font-semibold">{data.ticker} Forecast</h2>
-                  <button 
-                    onClick={() => toggleFavorite(data.ticker)}
-                    className={`text-sm px-2 py-1 rounded border transition-colors ${
-                      isCurrentFavorite ? 'bg-yellow-500/20 border-yellow-500/50 text-yellow-500' : 'bg-gray-800 border-gray-700 text-gray-400 hover:text-white'
-                    }`}
-                  >
-                    {isCurrentFavorite ? '★ Favorited' : '☆ Add to Favs'}
-                  </button>
+        <>
+          {/* Metric cards row */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            {metrics && (
+              <>
+                <MetricCard
+                  label="Current price"
+                  value={metrics.currentPrice}
+                  changeText={metrics.priceChange}
+                  positive={metrics.pricePositive}
+                />
+                <MetricCard
+                  label="RSI (14)"
+                  value={metrics.rsi}
+                  changeText={metrics.rsiLabel}
+                  positive={metrics.rsiPositive}
+                />
+                <MetricCard
+                  label="MACD signal"
+                  value={metrics.macd}
+                  changeText={metrics.macdLabel}
+                  positive={metrics.macdPositive}
+                />
+                <MetricCard
+                  label={`${horizon}d forecast`}
+                  value={metrics.forecast}
+                  changeText={metrics.forecastLabel}
+                  positive={metrics.forecastPositive}
+                />
+              </>
+            )}
+          </div>
+
+          {/* Two-column main grid */}
+          <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
+
+            {/* ── Left: Price chart card (3/5 width) ── */}
+            <div className="lg:col-span-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl p-4 flex flex-col">
+              {/* Header */}
+              <div className="flex items-start justify-between mb-3">
+                <div>
+                  <h2 className="text-[13px] font-medium text-slate-900 dark:text-white">
+                    Price history + forecast
+                  </h2>
+                  <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-0.5">
+                    {data.historical.length} trading days
+                    {" "}({historicalDays >= 365
+                      ? `${Math.round(historicalDays / 365)}Y`
+                      : `${historicalDays}d`}) · {horizon}-day simulated projection
+                  </p>
                 </div>
-                {userData.favorites.length > 1 && (
-                  <button 
-                    onClick={() => {
-                      setCompareMode(true);
-                      handleCompare(userData.favorites.slice(0, 5)); // Compare up to 5
-                    }}
-                    className="text-xs bg-blue-600 hover:bg-blue-500 text-white px-3 py-1.5 rounded-lg transition-colors"
-                  >
-                    Compare Favorites
-                  </button>
-                )}
+                {/* Favourite toggle */}
+                <button
+                  onClick={() => toggleFavorite(data.ticker)}
+                  className={`text-[11px] px-2 py-1 rounded border transition-colors ${
+                    isCurrentFavorite
+                      ? "bg-[#E6F1FB] dark:bg-blue-900/40 border-[#185FA5]/30 text-[#185FA5] dark:text-blue-400"
+                      : "bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-600 text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300"
+                  }`}
+                >
+                  {isCurrentFavorite ? "★ Saved" : "☆ Save"}
+                </button>
               </div>
-              <div className="w-full h-[400px]">
+
+              {/* Chart */}
+              <div className="flex-1 w-full min-h-[280px]">
                 <StockChart datasets={[data]} />
               </div>
-            </div>
-          </div>
-          <div className="flex flex-col gap-6">
-            <div className="bg-gray-900/40 border border-gray-800 rounded-2xl p-5 shadow-lg h-full">
-              <div className="flex items-center gap-2 mb-6">
-                <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-                <h2 className="text-lg font-semibold">AI Agent Analysis</h2>
+
+              {/* Legend row */}
+              <div className="flex items-center gap-4 mt-3 pt-3 border-t border-slate-100 dark:border-slate-700">
+                <div className="flex items-center gap-1.5">
+                  <span className="inline-block w-5 h-0.5 bg-[#378ADD]" />
+                  <span className="text-[11px] text-slate-500 dark:text-slate-400">Historical</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="inline-block w-5 border-t-2 border-dashed border-[#1D9E75]" />
+                  <span className="text-[11px] text-slate-500 dark:text-slate-400">Forecast</span>
+                </div>
+                {metrics && (
+                  <div className="ml-auto flex items-center gap-2">
+                    <span className="font-mono text-[10px] bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 px-2 py-0.5 rounded">
+                      MA20: {(() => {
+                        const closes = data.historical.slice(-20).map(d => d.price);
+                        const avg = closes.reduce((a,b) => a+b, 0) / closes.length;
+                        return avg.toFixed(1);
+                      })()}
+                    </span>
+                    <span className="font-mono text-[10px] bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 px-2 py-0.5 rounded">
+                      MA50: {(() => {
+                        const closes = data.historical.slice(-50).map(d => d.price);
+                        const avg = closes.reduce((a,b) => a+b, 0) / closes.length;
+                        return avg.toFixed(1);
+                      })()}
+                    </span>
+                  </div>
+                )}
               </div>
-              <div className="flex-grow overflow-y-auto">
+            </div>
+
+            {/* ── Right: Agent analysis card (2/5 width) ── */}
+            <div className="lg:col-span-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl p-4 flex flex-col">
+              <h2 className="text-[13px] font-medium text-slate-900 dark:text-white mb-4">Agent analysis</h2>
+              <div className="flex-1 overflow-y-auto">
                 <AnalysisReport report={data.analysis_report} />
               </div>
             </div>
           </div>
-        </div>
+
+          {/* ── Compare mode trigger (only when 2+ favorites) ── */}
+          {userData.favorites.length > 1 && (
+            <div className="flex justify-end">
+              <button
+                onClick={() => {
+                  setCompareMode(true);
+                  handleCompare(userData.favorites.slice(0, 5));
+                }}
+                className="text-[12px] font-medium text-[#185FA5] bg-[#E6F1FB] hover:bg-[#D4E9F7] px-4 py-2 rounded-lg transition-colors"
+              >
+                Compare favorites →
+              </button>
+            </div>
+          )}
+        </>
       )}
 
+      {/* ── Compare mode ── */}
       {compareMode && !loading && compareData.length > 0 && (
-        <div className="bg-gray-900/40 border border-gray-800 rounded-2xl p-5 shadow-lg">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-lg font-semibold flex items-center gap-2">
-              <span className="text-blue-400">📊</span> Comparative Analysis (Normalized %)
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl p-4">
+          <div className="flex justify-between items-center mb-3">
+            <h2 className="text-[13px] font-medium text-slate-900 dark:text-white">
+              Comparative Analysis — Normalized %
             </h2>
-            <button 
+            <button
               onClick={() => setCompareMode(false)}
-              className="text-xs bg-gray-700 hover:bg-gray-600 text-white px-3 py-1.5 rounded-lg transition-colors"
+              className="text-[11px] text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 bg-slate-100 dark:bg-slate-800 px-3 py-1.5 rounded-lg transition-colors"
             >
-              Exit Compare Mode
+              Exit compare
             </button>
           </div>
-          <div className="w-full h-[500px]">
+          <div className="w-full h-[400px]">
             <StockChart datasets={compareData} normalized={true} />
           </div>
         </div>

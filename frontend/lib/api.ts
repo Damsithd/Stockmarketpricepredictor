@@ -22,12 +22,13 @@ export interface PredictionResponse {
  */
 export async function fetchPrediction(
   ticker: string,
-  horizon: number = 7
+  horizon: number = 7,
+  historical_days: number = 365
 ): Promise<PredictionResponse> {
   const response = await fetch("/api/predict", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ ticker, horizon }),
+    body: JSON.stringify({ ticker, horizon, historical_days }),
   });
 
   if (!response.ok) {

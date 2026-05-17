@@ -22,14 +22,16 @@ def compute_indicators(df):
     
     return df
 
-def predict_stock(ticker: str, horizon: int = 7):
+def predict_stock(ticker: str, horizon: int = 7, historical_days: int = 365):
     """
     Fetches historical data and generates a forecast.
+    historical_days: how many calendar days of history to return (default 365).
     Note: For production, this would load the trained TensorFlow/Keras LSTM model 
     weights and run inference. Here we simulate the LSTM output using recent volatility.
     """
     end_date = datetime.now()
-    start_date = end_date - timedelta(days=365)
+    # Fetch 5 years from Yahoo Finance so we always have enough data for any historical_days window
+    start_date = end_date - timedelta(days=365 * 5)
     
     try:
         stock_data = yf.download(ticker, start=start_date.strftime('%Y-%m-%d'), end=end_date.strftime('%Y-%m-%d'))
@@ -61,8 +63,10 @@ def predict_stock(ticker: str, horizon: int = 7):
     
     df = compute_indicators(df)
     
-    # Get last 30 days for historical view
-    recent_history = df.tail(30).copy()
+    # Return the requested number of trading days (approx: historical_days * 5/7 trading days)
+    # We use calendar days as the cutoff since the data is already indexed by date
+    cutoff_date = end_date - timedelta(days=historical_days)
+    recent_history = df[df['Date'] >= pd.Timestamp(cutoff_date)].copy()
     
     historical = []
     for _, row in recent_history.iterrows():

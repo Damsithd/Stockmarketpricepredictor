@@ -1,5 +1,6 @@
 /** @type {import('tailwindcss').Config} */
 module.exports = {
+  // Light-only design: darkMode disabled (Concept 2)
   darkMode: "class",
   content: [
     "./app/**/*.{js,ts,jsx,tsx,mdx}",
@@ -8,18 +9,36 @@ module.exports = {
   theme: {
     extend: {
       fontFamily: {
-        sans: ["Inter", "sans-serif"],
+        sans: ["Inter", "system-ui", "sans-serif"],
       },
       colors: {
-        gray: {
-          850: "#1f2937",
-          900: "#111827",
-          950: "#030712",
-        },
+        // Brand palette (Concept 2)
         brand: {
-          500: "#3b82f6",
-          600: "#2563eb",
+          DEFAULT: "#185FA5",
+          light:   "#E6F1FB",
+          hover:   "#145090",
         },
+        // Status colours
+        positive: {
+          DEFAULT: "#0F6E56",
+          bg:      "#E1F5EE",
+        },
+        negative: {
+          DEFAULT: "#993C1D",
+          bg:      "#FAECE7",
+        },
+        neutral: {
+          DEFAULT: "#854F0B",
+          bg:      "#FAEEDA",
+        },
+        // Chart line colours (for reference in JS)
+        chart: {
+          historical: "#378ADD",
+          forecast:   "#1D9E75",
+        },
+      },
+      borderColor: {
+        DEFAULT: "#E2E8F0",
       },
     },
   },

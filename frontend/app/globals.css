@@ -2,43 +2,42 @@
 @tailwind components;
 @tailwind utilities;
 
-/* ── Scrollbar ── */
-::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
-}
-::-webkit-scrollbar-track {
-  background: #030712;
-}
-::-webkit-scrollbar-thumb {
-  background: #1f2937;
-  border-radius: 4px;
-}
-::-webkit-scrollbar-thumb:hover {
-  background: #374151;
-}
+/* ── Scrollbar (light) ── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: #f1f5f9; }
+::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
 
-/* ── Prose / Markdown overrides ── */
-.prose h3 {
-  color: #f3f4f6;
-  margin-top: 0;
-  margin-bottom: 1rem;
-  font-size: 1.25rem;
-  font-weight: 600;
+/* ── Scrollbar (dark) ── */
+.dark ::-webkit-scrollbar-track { background: #0f172a; }
+.dark ::-webkit-scrollbar-thumb { background: #334155; }
+.dark ::-webkit-scrollbar-thumb:hover { background: #475569; }
+
+/* ── Prose (light) ── */
+.prose h3 { color: #0f172a; margin-top: 0; margin-bottom: 0.75rem; font-size: 0.8125rem; font-weight: 600; }
+.prose p  { margin-bottom: 0.75rem; line-height: 1.6; color: #475569; font-size: 0.6875rem; }
+.prose strong { color: #1e293b; }
+.prose ul  { list-style-type: disc; padding-left: 1.25rem; margin-bottom: 0.75rem; }
+.prose li  { margin-bottom: 0.2rem; color: #475569; font-size: 0.6875rem; }
+
+/* ── Prose (dark) ── */
+.dark .prose h3    { color: #f1f5f9; }
+.dark .prose p     { color: #94a3b8; }
+.dark .prose strong { color: #e2e8f0; }
+.dark .prose li    { color: #94a3b8; }
+
+/* ── Fade-in animation ── */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
-.prose p {
-  margin-bottom: 1rem;
-  line-height: 1.6;
+.animate-in { animation: fadeIn 0.35s ease forwards; }
+
+/* ── Smooth theme transition on all elements ── */
+*, *::before, *::after {
+  transition-property: background-color, border-color, color;
+  transition-duration: 150ms;
+  transition-timing-function: ease;
 }
-.prose strong {
-  color: #e5e7eb;
-}
-.prose ul {
-  list-style-type: disc;
-  padding-left: 1.5rem;
-  margin-bottom: 1rem;
-}
-.prose li {
-  margin-bottom: 0.25rem;
-  color: #d1d5db;
-}
+/* But don't transition things that shouldn't animate */
+input, button, a { transition-property: background-color, border-color, color, box-shadow, opacity, transform; }
