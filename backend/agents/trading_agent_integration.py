@@ -51,7 +51,7 @@ def generate_analyst_report(ticker: str, historical_data: list, forecast_data: l
             [Provide final advice based on the above]
             """
             response = client.models.generate_content(
-                model='gemini-1.5-flash',
+                model='gemini-2.0-flash',
                 contents=prompt
             )
             if response.text:
